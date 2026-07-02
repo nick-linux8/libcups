@@ -530,6 +530,16 @@ cupsConnectDest(
     return (NULL);
   }
 
+  // If the destination points back at ourselves and the current server is a
+  // domain socket, reconnect over that socket instead of resolving "hostname"
+  // over TCP. Servers reached via a domain socket have no real port, so they
+  // report back a portless "localhost" URI (e.g. from a client Host header of
+  // "localhost:0"); httpSeparateURI() then defaults the missing port to the
+  // scheme's well-known port (631 for ipp), which nothing listens on in a
+  // socket-only deployment (no cups-sharing/scheduler bound to that TCP port).
+  if (!_cups_strcasecmp(hostname, "localhost") && cupsGetServer() && cupsGetServer()[0] == '/')
+    cupsCopyString(hostname, cupsGetServer(), sizeof(hostname));
+
   // Lookup the address for the server...
   if (cb)
     (*cb)(user_data, CUPS_DEST_FLAGS_UNCONNECTED | CUPS_DEST_FLAGS_RESOLVING, dest);
